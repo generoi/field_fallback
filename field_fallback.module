@@ -1,0 +1,50 @@
+<?php
+
+/**
+ * Implements hook_form_field_ui_field_edit_form_alter().
+ */
+function field_fallback_form_field_ui_field_edit_form_alter(&$form, &$form_state) {
+  $field_type = $form['#field']['type'];
+  $entity_type = $form['#instance']['entity_type'];
+  $bundle = $form['#instance']['bundle'];
+  $fallback_fields = array();
+  // Fields of the same field type.
+  foreach (field_info_instances($entity_type, $bundle) as $field_name => $instance) {
+    // Skip the same field.
+    if ($field_name == $form['#field']['field_name']) {
+      continue;
+    }
+    $field = field_info_field($field_name);
+    if ($field['type'] == $field_type) {
+      $fallback_fields[$instance['field_name']] = $instance['label'];
+    }
+  }
+
+  if (!empty($fallback_fields)) {
+    $form['instance']['fallback_field'] = array(
+      '#type' => 'select',
+      '#title' => t('Fallback field'),
+      '#options' => array('') + $fallback_fields,
+      '#description' => t('If no value is set and no other default is used the value from this field will be used when the entity is rendered.'),
+      '#default_value' => isset($form['#instance']['fallback_field']) ? $form['#instance']['fallback_field'] : '',
+    );
+  }
+}
+
+/**
+ * Implements hook_entity_prepare_view().
+ */
+function field_fallback_entity_prepare_view($entities, $type, $langcode) {
+  foreach ($entities as $entity) {
+    list(,,$bundle) = entity_extract_ids($type, $entity);
+    foreach (field_info_instances($type, $bundle) as $field_name => $instance) {
+      // Skip fields which has a value
+      if (!empty($entity->{$field_name})) {
+        continue;
+      }
+      if (!empty($instance['fallback_field'])) {
+        $entity->{$field_name} = $entity->{$instance['fallback_field']};
+      }
+    }
+  }
+}
