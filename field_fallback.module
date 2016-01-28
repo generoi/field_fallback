@@ -15,7 +15,7 @@ function field_fallback_form_field_ui_field_edit_form_alter(&$form, &$form_state
       $entity_info = entity_get_info($entity_type);
       $label_key = $entity_info['entity keys']['label'];
       // @todo where can we actually retrieve this label.
-      $fallback_fields[$label_key] = $label_key == 'name' ? t('Nmae') : t('Title');
+      $fallback_fields[$label_key] = $label_key == 'name' ? t('Name') : t('Title');
   }
 
   // Fields of the same field type.
