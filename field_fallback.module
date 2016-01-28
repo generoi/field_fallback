@@ -8,6 +8,16 @@ function field_fallback_form_field_ui_field_edit_form_alter(&$form, &$form_state
   $entity_type = $form['#instance']['entity_type'];
   $bundle = $form['#instance']['bundle'];
   $fallback_fields = array();
+
+  switch ($field_type) {
+    // Add the label field as a fallback for text fields.
+    case 'text':
+      $entity_info = entity_get_info($entity_type);
+      $label_key = $entity_info['entity keys']['label'];
+      // @todo where can we actually retrieve this label.
+      $fallback_fields[$label_key] = $label_key == 'name' ? t('Nmae') : t('Title');
+  }
+
   // Fields of the same field type.
   foreach (field_info_instances($entity_type, $bundle) as $field_name => $instance) {
     // Skip the same field.
@@ -35,6 +45,8 @@ function field_fallback_form_field_ui_field_edit_form_alter(&$form, &$form_state
  * Implements hook_entity_prepare_view().
  */
 function field_fallback_entity_prepare_view($entities, $type, $langcode) {
+  $entity_info = entity_get_info($type);
+
   foreach ($entities as $entity) {
     list(,,$bundle) = entity_extract_ids($type, $entity);
     foreach (field_info_instances($type, $bundle) as $field_name => $instance) {
@@ -43,7 +55,21 @@ function field_fallback_entity_prepare_view($entities, $type, $langcode) {
         continue;
       }
       if (!empty($instance['fallback_field'])) {
-        $entity->{$field_name} = $entity->{$instance['fallback_field']};
+        $field_info = field_info_field($field_name);
+        $fallback_field = $entity->{$instance['fallback_field']};
+
+        // Fallback field is the label, wrap it as a textfield.
+        if ($field_info['type'] == 'text' && $entity_info['entity keys']['label'] == $instance['fallback_field']) {
+          $language = field_language($type, $entity, $field_name, $langcode);
+          $fallback_field = array();
+          $fallback_field[$language][] = array(
+            'value' => $entity->{$instance['fallback_field']},
+            'format' => NULL,
+            'safe_value' => $entity->{$instance['fallback_field']},
+          );
+        }
+
+        $entity->{$field_name} = $fallback_field;
       }
     }
   }
